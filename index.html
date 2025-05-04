@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NewsRen</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 2rem auto;
+      text-align: center;
+    }
+    #urlDisplay {
+      font-size: 0.9rem;
+      color: #555;
+      margin-top: 0.5rem;
+      min-height: 1.2em;
+    }
+    #timerDisplay {
+      font-size: 0.9rem;
+      color: #555;
+      margin-top: 0.5rem;
+      min-height: 1.2em;
+    }
+    #spinner {
+      display: none;
+      margin: 1rem auto;
+    }
+    .spinner {
+      border: 4px solid rgba(0,0,0,0.1);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border-top-color: #09f;
+      animation: spin 1s linear infinite;
+      margin: auto;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    #output {
+      margin-top: 1rem;
+      text-align: left;
+      background: #f9f9f9;
+      padding: 1rem;
+      border-radius: 4px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    #output h2 {
+      margin: 1rem 0 0.5rem;
+      font-size: 1.1rem;
+      color: #333;
+    }
+    #output pre {
+      margin: 0 0 1rem;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    input, button {
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+    button {
+      margin-left: 0.5rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>What do you wanna know about today?</h1>
+  <div>
+    <input
+      type="text"
+      id="queryInput"
+      placeholder="Type your question here…"
+      size="40"
+    />
+    <button id="searchBtn">Search</button>
+  </div>
+  <div id="urlDisplay"></div>
+  <div id="timerDisplay"></div>
+
+  <div id="spinner">
+    <div class="spinner"></div>
+  </div>
+
+  <div id="output"></div>
+
+  <script>
+  <!-- https://news-render-6.onrender.com/generate?q=trump+tarrifs+mumbai -->
+    const BASE = 'https://news-render-6.onrender.com/generate?q=';
+    const queryInput = document.getElementById('queryInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const urlDisplay = document.getElementById('urlDisplay');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const spinner = document.getElementById('spinner');
+    const output = document.getElementById('output');
+
+    function formatQuery(q) {
+      return q.trim().split(/\s+/).join('+');
+    }
+
+    function updateURLDisplay() {
+      const raw = queryInput.value;
+      if (!raw.trim()) {
+        urlDisplay.textContent = '';
+        timerDisplay.textContent = '';
+      } else {
+        urlDisplay.textContent = `Query URL: ${BASE}${formatQuery(raw)}`;
+      }
+    }
+
+    queryInput.addEventListener('input', updateURLDisplay);
+
+    searchBtn.addEventListener('click', () => {
+      const raw = queryInput.value;
+      if (!raw.trim()) {
+        alert('Please enter a query.');
+        return;
+      }
+      const formatted = formatQuery(raw);
+      const url = `${BASE}${formatted}`;
+
+      urlDisplay.textContent = `Query URL: ${url}`;
+
+      // start timer
+      const startTime = performance.now();
+
+      output.innerHTML = '';
+      spinner.style.display = 'block';
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000);
+
+      fetch(url, { signal: controller.signal })
+        .then(res => {
+          if (!res.ok) {
+            return res.text().then(text => {
+              throw new Error(`HTTP ${res.status} ${res.statusText}\n${text}`);
+            });
+          }
+          return res.json();
+        })
+        .then(data => {
+          for (const [key, value] of Object.entries(data)) {
+            const h2 = document.createElement('h2');
+            h2.textContent = key;
+            output.appendChild(h2);
+
+            const pre = document.createElement('pre');
+            pre.textContent = JSON.stringify(value, null, 2);
+            output.appendChild(pre);
+          }
+        })
+        .catch(err => {
+          const errBox = document.createElement('pre');
+          errBox.textContent = `Error:\n${err.message}`;
+          output.appendChild(errBox);
+        })
+        .finally(() => {
+          clearTimeout(timeoutId);
+          spinner.style.display = 'none';
+          const elapsed = (performance.now() - startTime) / 1000;
+          timerDisplay.textContent = `Time taken: ${elapsed.toFixed(2)} s`;
+        });
+    });
+  </script>
+</body>
+</html>
